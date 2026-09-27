@@ -5,7 +5,7 @@ import React from 'react'
 const page = () => {
   return (
     <> 
-    <Image src = {"/login.svg"} alt = "login" width={500} height={500} className='mx-auto' />
+    <Image src = {"/login.svg"} alt = "login" width={500} height={500} className='mx-auto' loading='eager' />
     <SignInFormClient />
     </>
   )
