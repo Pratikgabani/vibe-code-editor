@@ -14,18 +14,18 @@ enum UserRole {
 }
 
 model User {
-  id        String    @id @default(cuid()) @map("_id")
-  name      String?
-  email     String    @unique
-  image     String?
-  accounts  Account[]
-  sessions  Session[]
-  role      UserRole  @default(USER)
+  id       String    @id @default(cuid()) @map("_id")
+  name     String?
+  email    String    @unique
+  image    String?
+  accounts Account[]
+  sessions Session[]
+  role     UserRole  @default(USER)
 
-  myPlayground Playground[] 
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  myPlayground Playground[]
+  starredPlayground Starmark[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model Account {
@@ -45,7 +45,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@index([userId]) 
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -70,7 +70,7 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-enum Templates{
+enum Templates {
   REACT
   NEXTJS
   ANGULAR
@@ -79,29 +79,26 @@ enum Templates{
   EXPRESS
 }
 
-model Playground{
-  id String @id @default(cuid()) @map("_id")
-  title String
+model Playground {
+  id          String     @id @default(cuid()) @map("_id")
+  title       String
   description String?
-  template Templates @default(NEXTJS)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  Starmark Starmark[]
-  userId String
-  user User @relation(fields:[userId] , references:[id] , onDelete: Cascade)
-
+  template    Templates  @default(NEXTJS)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  Starmark    Starmark[]
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Starmark{
-  id String @id @default(cuid()) @map("_id")
+model Starmark {
+  id           String     @id @default(cuid()) @map("_id")
   playgroundId String
-  userId String
-  isMarked Boolean
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  playground Playground @relation(fields:[playgroundId] , references:[id] , onDelete: Cascade)
-  user User @relation(fields:[userId] , references:[id] , onDelete: Cascade)
+  userId       String
+  isMarked     Boolean
+  createdAt    DateTime   @default(now())
+  playground   Playground @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId , playgroundId])
-
+  @@unique([userId, playgroundId])
 }

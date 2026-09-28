@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import {auth} from "@/auth";
 import { ThemeProvider } from "@/components/providers/theme-providers";
+import { Toaster } from "@/components/ui/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default async function RootLayout({
     <SessionProvider session={session}>
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
       <body className="min-h-full flex flex-col">
@@ -41,7 +43,13 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <div className = "flex flex-col min-h-screen">
+              <Toaster />
+              <div className="flex-1">
+                {children}
+              </div>
+            </div>
+            
           </ThemeProvider>
           </body>
     </html>
