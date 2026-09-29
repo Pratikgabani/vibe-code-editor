@@ -13,7 +13,15 @@ export const getAllPlaygroundForUser = async()=>{
                 userId : user?.id
             },
             include:{
-                user : true
+                user : true,
+                Starmark : {
+                    where:{
+                        userId : user?.id
+                    },
+                    select : {
+                        isMarked : true
+                    }
+                }
             }
         })
         return playground
@@ -107,20 +115,27 @@ export const toggleStarMarked = async(playgroundId : string, isChecked : boolean
     if(!user) throw new Error("User not found")
     try{
         if(isChecked){
-            await db.starmark.create({
-                data:{
-                    playgroundId,
-                    userId : user.id!,
-                    isMarked : isChecked
-                }
-            })
-        }else{
-            await db.starmark.delete({
+            await db.starmark.upsert({
                 where:{
                     userId_playgroundId : {
                         playgroundId,
                         userId
                     }
+                },
+                create:{
+                    playgroundId,
+                    userId : user.id!,
+                    isMarked : true
+                },
+                update:{
+                    isMarked : true
+                }
+            })
+        }else{
+            await db.starmark.deleteMany({
+                where:{
+                    playgroundId,
+                    userId
                 }
             })
         }

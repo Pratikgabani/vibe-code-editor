@@ -18,7 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const formattedPlaygroundData = playgroundData?.map((item) => ({
         id: item.id,
         name : item.title,
-        starred: false,
+        starred: item.Starmark?.[0]?.isMarked || false,
         icon : technologyIconMap[item.template] || "Code2"
     }))
 

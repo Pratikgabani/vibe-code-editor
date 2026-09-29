@@ -37,9 +37,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
 import { useState } from "react"
-import { MoreHorizontal, Edit3, Trash2, ExternalLink, Copy, Download, Eye } from "lucide-react"
+import { MoreHorizontal, Edit3, Trash2, ExternalLink, Copy, Download, Eye, Star, StarOff } from "lucide-react"
 import { toast } from "@/components/ui/toast"
-// import { toast } from "sonner"
+import { toggleStarMarked } from "@/modules/dashboard/actions"
 
 
 interface ProjectTableProps {
@@ -62,12 +62,13 @@ export default function ProjectTable({
   onDuplicateProject,
   onMarkasFavorite,
 }: ProjectTableProps) {
+  const [projectList, setProjectList] = useState(projects)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [editData, setEditData] = useState<EditProjectData>({ title: "", description: "" })
   const [isLoading, setIsLoading] = useState(false)
-  const [favourite, setFavourite] = useState(false)
+  const [favoriteLoadingIds, setFavoriteLoadingIds] = useState<Set<string>>(new Set())
 
   const handleEditClick = (project: Project) => {
     setSelectedProject(project)
@@ -81,12 +82,19 @@ export default function ProjectTable({
   }
 
   const handleUpdateProject = async () => {
-
     if (!selectedProject || !onUpdateProject) return
     setIsLoading(true)
     try {
       await onUpdateProject(selectedProject.id, editData)
-      setEditDialogOpen(false);
+      // Instantly patch the row in local state
+      setProjectList((current) =>
+        current.map((p) =>
+          p.id === selectedProject.id
+            ? { ...p, title: editData.title, description: editData.description }
+            : p
+        )
+      )
+      setEditDialogOpen(false)
       toast.add({
         title: "Project updated successfully",
         type: "success",
@@ -97,35 +105,81 @@ export default function ProjectTable({
         type: "error",
       })
       console.error("Error updating project:", error)
-    }
-    finally {
+    } finally {
       setIsLoading(false)
     }
   }
 
   const handleMarkasFavorite = async (project: Project) => {
-    //    Write your logic here
+    const nextValue = !(project.Starmark?.[0]?.isMarked ?? false)
+
+    // Optimistic update
+    setProjectList((current) =>
+      current.map((item) =>
+        item.id === project.id
+          ? { ...item, Starmark: [{ isMarked: nextValue }] }
+          : item,
+      ),
+    )
+    setFavoriteLoadingIds((prev) => new Set(prev).add(project.id))
+
+    try {
+      const result = await toggleStarMarked(project.id, nextValue)
+
+      if (!result.success) {
+        // Revert on failure
+        setProjectList((current) =>
+          current.map((item) =>
+            item.id === project.id
+              ? { ...item, Starmark: [{ isMarked: !nextValue }] }
+              : item,
+          ),
+        )
+        throw new Error(result.error ?? "Failed to update favorite")
+      }
+
+      toast.add({
+        title: nextValue ? "Added to favorites" : "Removed from favorites",
+        type: "success",
+      })
+    } catch (error) {
+      console.error("Error toggling favorite:", error)
+      toast.add({
+        title: "Error updating favorite",
+        type: "error",
+      })
+    } finally {
+      setFavoriteLoadingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(project.id)
+        return next
+      })
+    }
   }
 
   const handleDeleteProject = async () => {
     if (!selectedProject || !onDeleteProject) return
+    // Snapshot for rollback, then optimistically remove
+    const snapshot = projectList
+    setProjectList((current) => current.filter((p) => p.id !== selectedProject.id))
+    setDeleteDialogOpen(false)
+    setSelectedProject(null)
     setIsLoading(true)
     try {
       await onDeleteProject(selectedProject.id)
-      setDeleteDialogOpen(false);
-      setSelectedProject(null);
       toast.add({
         title: "Project deleted successfully",
         type: "success",
       })
     } catch (error) {
+      // Revert on failure
+      setProjectList(snapshot)
       toast.add({
         title: "Error deleting project",
         type: "error",
       })
       console.error("Error deleting project:", error)
-    }
-    finally {
+    } finally {
       setIsLoading(false)
     }
   }
@@ -134,7 +188,14 @@ export default function ProjectTable({
     if (!onDuplicateProject) return
     setIsLoading(true)
     try {
-      await onDuplicateProject(project.id)
+      const result = await onDuplicateProject(project.id) as Project | undefined
+      if (result) {
+        // Append the new duplicate with the same user info
+        setProjectList((current) => [
+          ...current,
+          { ...result, user: project.user, Starmark: [] } as Project,
+        ])
+      }
       toast.add({
         title: "Project duplicated successfully",
         type: "success",
@@ -145,8 +206,7 @@ export default function ProjectTable({
         type: "error",
       })
       console.error("Error duplicating project:", error)
-    }
-    finally {
+    } finally {
       setIsLoading(false)
     }
   }
@@ -174,7 +234,10 @@ export default function ProjectTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {projects.map((project) => (
+            {projectList.map((project) => {
+              const isFavorite = project.Starmark?.[0]?.isMarked ?? false
+              const isFavoriteLoading = favoriteLoadingIds.has(project.id)
+              return (
               <TableRow key={project.id}>
                 <TableCell className="font-medium">
                   <div className="flex flex-col">
@@ -216,8 +279,21 @@ export default function ProjectTable({
                       </>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => handleMarkasFavorite(project)}>
-                        {project.StarMark?.[0]?.isMarked ? "Remove from favorites" : "Mark as favorite"}
+                      <DropdownMenuItem
+                        onClick={() => handleMarkasFavorite(project)}
+                        disabled={isFavoriteLoading}
+                      >
+                        {isFavorite ? (
+                          <>
+                            <StarOff className="h-4 w-4 mr-2 text-yellow-400" />
+                            Remove from Favorites
+                          </>
+                        ) : (
+                          <>
+                            <Star className="h-4 w-4 mr-2" />
+                            Add to Favorites
+                          </>
+                        )}
                       </DropdownMenuItem>
                       <DropdownMenuItem render={<Link href={`/playground/${project.id}`} className="flex items-center" />}>
                         <>
@@ -258,7 +334,8 @@ export default function ProjectTable({
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
-            ))}
+              )
+            })}
           </TableBody>
         </Table>
       </div>

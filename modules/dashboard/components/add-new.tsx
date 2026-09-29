@@ -2,13 +2,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button"
-// import { createPlayground } from "@/features/playground/actions";
+import { createPlayground } from "@/modules/dashboard/actions";
 import { Plus } from 'lucide-react'
 import Image from "next/image"
 import { useRouter } from "next/navigation";
 import { useState } from "react"
 import TemplateSelectionModal from "./template-selecting-modal";
-import { createPlayground } from "../actions";
 import { toast } from "@/components/ui/toast";
 // import { toast } from "sonner";
 
