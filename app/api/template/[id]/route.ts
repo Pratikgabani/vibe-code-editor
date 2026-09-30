@@ -1,20 +1,7 @@
-import { readTemplateStructureFromJson, saveTemplateStructureToJson } from "@/modules/playground/lib/path-to-json";
 import { db } from "@/lib/db";
-import { templatePaths } from "@/lib/template";
-import path from "path";
-import fs from "fs/promises";
+import { getTemplateFiles, SUPPORTED_TEMPLATES } from "@/lib/templates";
+import type { TemplateId } from "@/lib/templates";
 import { NextRequest } from "next/server";
-
-// Helper function to ensure valid JSON
-function validateJsonStructure(data: unknown): boolean {
-  try {
-    JSON.parse(JSON.stringify(data)); // Ensures it's serializable
-    return true;
-  } catch (error) {
-    console.error("Invalid JSON structure:", error);
-    return false;
-  }
-}
 
 export async function GET(
   request: NextRequest,
@@ -35,34 +22,16 @@ export async function GET(
     return Response.json({ error: "Playground not found" }, { status: 404 });
   }
 
-  const templateKey = playground.template as keyof typeof templatePaths;
-  const templatePath = templatePaths[templateKey];
+  const templateKey = playground.template as TemplateId;
 
-  if (!templatePath) {
+  if (!SUPPORTED_TEMPLATES.includes(templateKey)) {
     return Response.json({ error: "Invalid template" }, { status: 404 });
   }
 
   try {
-    const inputPath = path.join(process.cwd(), templatePath);
-    const outputFile = path.join(process.cwd(), `output/${templateKey}.json`);
+    const templateFiles = getTemplateFiles(templateKey);
 
-    console.log("Input Path:", inputPath);
-    console.log("Output Path:", outputFile);
-
-    // Save and read the template structure
-    await saveTemplateStructureToJson(inputPath, outputFile);
-    const result = await readTemplateStructureFromJson(outputFile);
-
-    // Validate the JSON structure before saving
-    if (!validateJsonStructure(result.items)) {
-      return Response.json({ error: "Invalid JSON structure" }, { status: 500 });
-    }
-
-
-
-    await fs.unlink(outputFile);
-
-    return Response.json({ success: true, templateJson: result }, { status: 200 });
+    return Response.json({ success: true, templateJson: templateFiles }, { status: 200 });
   } catch (error) {
     console.error("Error generating template JSON:", error);
     return Response.json({ error: "Failed to generate template" }, { status: 500 });

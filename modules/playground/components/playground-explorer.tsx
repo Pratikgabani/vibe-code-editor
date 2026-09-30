@@ -259,7 +259,7 @@ function TemplateNode({
 
   if (!isFolder) {
     const file = item as TemplateFile;
-    const fileName = '';
+    const fileName = file.fileExtension ? `${file.filename}.${file.fileExtension}` : file.filename;
 
     const isSelected =
       selectedFile &&
