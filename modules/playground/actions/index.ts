@@ -183,10 +183,9 @@ export const duplicateProjectById = async (id: string) => {
                 description: originalPlayground.description,
                 template: originalPlayground.template,
                 userId: originalPlayground.userId,
-                templateFiles: {
-                  // @ts-ignore
-                    create: originalPlayground.templateFiles.map((file) => ({
-                        content: file.content,
+                templateFile: {
+                    create: originalPlayground.templateFile.map((file) => ({
+                        content: file.content === null ? {} : file.content,
                     })),
                 },
             },
